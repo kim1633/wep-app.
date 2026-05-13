@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>복주걱 쿠폰</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+  <style>
+    :root { --primary: #B08968; --secondary: #4A3427; --bg: #F5F0E8; --naver-green: #03C75A; --save-blue: #3498db; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 15px; color: var(--secondary); line-height: 1.5; }
+
+    .screen { display: none; min-height: 90vh; flex-direction: column; max-width: 500px; margin: 0 auto; }
+    .screen.active { display: flex; }
+    #screen1 { justify-content: center; }
+
+    .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+    .logo { font-size: 40px; margin-bottom: 10px; display: block; text-align: center; }
+    h2 { text-align: center; margin-top: 0; color: var(--secondary); }
+
+    .label-title { font-weight: bold; display: block; margin: 15px 0 8px; font-size: 15px; }
+    .radio-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .radio-option input { display: none; }
+    .radio-option label { display: block; padding: 12px 5px; background: white; border: 2px solid #eee; border-radius: 10px; text-align: center; font-size: 13px; cursor: pointer; }
+    .radio-option input:checked + label { background: var(--primary); color: white; border-color: var(--primary); font-weight: bold; }
+
+    .privacy-policy { font-size: 11px; color: #777; background: #f9f9f9; padding: 10px; border-radius: 8px; margin: 20px 0 10px; border: 1px solid #eee; }
+    .agree-check { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: bold; justify-content: center; margin-bottom: 20px; }
+
+    #couponArea { background: white; padding: 20px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+    #couponVisual { background: #fffcf5; border: 2px dashed var(--primary); border-radius: 15px; padding: 25px; text-align: center; }
+    .coupon-store { font-weight: bold; color: var(--primary); font-size: 14px; }
+    .coupon-title { font-size: 24px; font-weight: 800; margin: 8px 0; }
+    .coupon-code { font-size: 20px; font-weight: 900; color: var(--secondary); letter-spacing: 1px; margin: 8px 0; display: block; }
+    .coupon-caution { font-size: 12px; color: #e74c3c; font-weight: bold; margin-top: 5px; }
+    .coupon-date { font-size: 11px; color: #999; margin-top: 8px; }
+
+    /* QR 영역 */
+    #qrContainer { margin: 18px auto 5px; display: flex; flex-direction: column; align-items: center; }
+    #qrcode { padding: 10px; background: white; border: 1px solid #eee; border-radius: 10px; display: inline-block; }
+    .qr-label { font-size: 12px; color: #888; margin-top: 8px; }
+
+    /* 로딩 스피너 */
+    #qrLoading { font-size: 13px; color: #999; margin: 20px 0; }
+
+    .used-banner { display: none; background: #e74c3c; color: white; text-align: center; padding: 12px; border-radius: 10px; font-weight: bold; font-size: 16px; margin-top: 10px; }
+    .important-notice { text-align: center; font-size: 14px; color: #e74c3c; font-weight: 800; margin: 15px 0 10px; }
+
+    .btn { width: 100%; padding: 16px; border: none; border-radius: 12px; font-size: 17px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-bottom: 10px; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-save { background: var(--save-blue); color: white; }
+    .btn:disabled { background: #ccc !important; }
+
+    .info-links { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 15px; }
+    .info-btn { background: white; border: 1px solid #ddd; padding: 12px; border-radius: 10px; text-decoration: none; color: #555; font-size: 13px; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px; }
+    .naver-btn { background: var(--naver-green); color: white; border: none; font-weight: bold; }
+    .kakao-link { grid-column: span 2; background: #FEE500; color: #3C1E1E; border: none; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <div id="screen1" class="screen active">
+    <div class="card">
+      <span class="logo">🍚</span>
+      <h2>복주걱 할인 쿠폰</h2>
+      <span class="label-title">연령대 선택</span>
+      <div class="radio-group">
+        <div class="radio-option"><input type="radio" name="age" id="a1" value="10대"><label for="a1">10대</label></div>
+        <div class="radio-option"><input type="radio" name="age" id="a2" value="20대"><label for="a2">20대</label></div>
+        <div class="radio-option"><input type="radio" name="age" id="a3" value="30대"><label for="a3">30대</label></div>
+        <div class="radio-option"><input type="radio" name="age" id="a4" value="40대"><label for="a4">40대</label></div>
+        <div class="radio-option"><input type="radio" name="age" id="a5" value="50대"><label for="a5">50대</label></div>
+        <div class="radio-option"><input type="radio" name="age" id="a6" value="60대이상"><label for="a6">60대↑</label></div>
+      </div>
+      <span class="label-title">성별 선택</span>
+      <div class="radio-group">
+        <div class="radio-option"><input type="radio" name="gender" id="gm" value="남"><label for="gm">남성</label></div>
+        <div class="radio-option"><input type="radio" name="gender" id="gf" value="여"><label for="gf">여성</label></div>
+        <div class="radio-option"><input type="radio" name="gender" id="gn" value="응답안함"><label for="gn">응답안함</label></div>
+      </div>
+      <div class="privacy-policy">
+        <b>개인정보 수집 및 이용 안내</b><br>
+        • 목적: 쿠폰 중복 발급 방지 및 마케팅 통계<br>
+        • 보유: 캠페인 종료 후 3개월 이내 파기
+      </div>
+      <div class="agree-check">
+        <input type="checkbox" id="agree">
+        <label for="agree">내용을 확인했으며 동의합니다.</label>
+      </div>
+      <button id="requestBtn" class="btn btn-primary" onclick="handleRequest()">쿠폰 신청하기</button>
+    </div>
+  </div>
+
+  <div id="screen2" class="screen">
+    <div id="couponArea">
+      <div id="couponVisual">
+        <div class="coupon-store">복주걱 롯데광복점</div>
+        <div class="coupon-title">10% 할인 쿠폰</div>
+        <span id="displayCode" class="coupon-code">--------</span>
+
+        <!-- QR 코드 -->
+        <div id="qrContainer">
+          <div id="qrLoading">🔄 QR 코드 생성 중...</div>
+          <div id="qrcode" style="display:none;"></div>
+          <div class="qr-label" style="display:none;" id="qrLabel">📷 직원에게 이 QR을 스캔해 주세요</div>
+        </div>
+
+        <div class="coupon-caution">※ 주의사항: 음료 및 주류 제외</div>
+        <div id="displayDate" class="coupon-date"></div>
+      </div>
+      <div id="usedBanner" class="used-banner">✅ 사용 완료된 쿠폰입니다</div>
+    </div>
+
+    <div class="important-notice">※ 1인 1매 한정 사용 가능합니다.</div>
+    <button class="btn btn-save" onclick="saveCouponImage()">💾 쿠폰 이미지 저장</button>
+
+    <div class="info-links">
+      <a href="https://naver.me/GIGq5xiP" target="_blank" class="info-btn naver-btn">📍 오시는길 (지도)</a>
+      <a href="tel:051-678-3026" class="info-btn">📞 전화문의</a>
+      <a href="https://pf.kakao.com/_RBeHn/friend" target="_blank" class="info-btn kakao-link">💬 카카오톡 친구추가</a>
+    </div>
+  </div>
+
+ <script>
+  // ─────────────────────────────────────────────
+  // 1. 핑거프린트 생성 (Canvas + 기기 정보 조합)
+  // ─────────────────────────────────────────────
+  async function generateFingerprint() {
+    const parts = [
+      navigator.language || '',
+      navigator.platform || '',
+      screen.width + 'x' + screen.height,
+      screen.colorDepth,
+      new Date().getTimezoneOffset(),
+      navigator.hardwareConcurrency || '',
+      navigator.maxTouchPoints || 0,
+    ];
+
+    // Canvas 핑거프린트 (같은 기기+브라우저면 항상 동일한 값)
+    try {
+      const c = document.createElement('canvas');
+      const ctx = c.getContext('2d');
+      ctx.textBaseline = 'top';
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#B08968';
+      ctx.fillText('복주걱쿠폰🍚', 2, 2);
+      ctx.fillStyle = 'rgba(176,137,104,0.5)';
+      ctx.fillRect(10, 5, 80, 20);
+      parts.push(c.toDataURL());
+    } catch(e) {}
+
+    // 문자열 → 정수 해시
+    const str = parts.join('|');
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return 'fp-' + Math.abs(hash).toString(36);
+  }
+
+  // ─────────────────────────────────────────────
+  // 2. clientId: localStorage 우선, 없으면 생성
+  // ─────────────────────────────────────────────
+  const clientId = localStorage.getItem('bjg_cid')
+    || 'c-' + Math.random().toString(36).substr(2, 9) + Date.now();
+  localStorage.setItem('bjg_cid', clientId);
+
+  // ─────────────────────────────────────────────
+  // 3. 쿠폰 신청 핸들러 (async로 변경)
+  // ─────────────────────────────────────────────
+  async function handleRequest() {
+    const age    = document.querySelector('input[name="age"]:checked');
+    const gender = document.querySelector('input[name="gender"]:checked');
+    const agreed = document.getElementById('agree').checked;
+    if (!age || !gender || !agreed) {
+      alert('모든 항목을 입력하고 동의해주세요.');
+      return;
+    }
+
+    const btn = document.getElementById('requestBtn');
+    btn.disabled = true;
+    btn.textContent = '처리 중...';
+
+    // 핑거프린트 생성 (버튼 누를 때마다 동일 기기면 동일 값)
+    const fingerprint = await generateFingerprint();
+
+    google.script.run
+      .withSuccessHandler(res => {
+        if (res.success) {
+          document.getElementById('displayCode').textContent = res.code;
+          document.getElementById('displayDate').textContent = '발급일: ' + res.date;
+          if (res.isUsed) document.getElementById('usedBanner').style.display = 'block';
+          showScreen('screen2');
+          if (res.isExisting) alert('이전에 발급된 쿠폰을 불러왔습니다. 📋');
+
+          google.script.run
+            .withSuccessHandler(url => generateQR(url, res.code))
+            .getDeployUrl();
+        } else {
+          alert(res.error);
+          btn.disabled = false;
+          btn.textContent = '쿠폰 신청하기';
+        }
+      })
+      .withFailureHandler(err => {
+        alert('오류: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = '쿠폰 신청하기';
+      })
+      .processCouponRequest(clientId, age.value, gender.value, agreed, fingerprint);
+  }
+
+  // ─────────────────────────────────────────────
+  // 4. 이하 기존 함수 완전히 그대로
+  // ─────────────────────────────────────────────
+  function generateQR(deployUrl, couponCode) {
+    const staffUrl = deployUrl + '?page=staff&code=' + encodeURIComponent(couponCode);
+    document.getElementById('qrLoading').style.display = 'none';
+    const qrDiv = document.getElementById('qrcode');
+    qrDiv.style.display = 'inline-block';
+    document.getElementById('qrLabel').style.display = 'block';
+    new QRCode(qrDiv, {
+      text: staffUrl,
+      width: 160,
+      height: 160,
+      colorDark: '#4A3427',
+      colorLight: '#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  }
+
+  function saveCouponImage() {
+    html2canvas(document.getElementById('couponArea'), {
+      backgroundColor: '#F5F0E8', scale: 2, useCORS: true
+    }).then(canvas => {
+      const link = document.createElement('a');
+      link.download = '복주걱_10%할인쿠폰.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+  }
+
+  function showScreen(id) {
+    document.getElementById('screen1').classList.remove('active');
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0, 0);
+  }
+</script>
+</body>
+</html>
