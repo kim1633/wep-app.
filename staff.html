@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>복주걱 직원 확인</title>
+  <style>
+    :root { --primary: #B08968; --secondary: #4A3427; --bg: #F5F0E8; }
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: var(--secondary); }
+    .container { max-width: 420px; margin: 0 auto; }
+
+    .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); margin-bottom: 15px; }
+    h2 { text-align: center; margin-top: 0; }
+    .logo { font-size: 36px; display: block; text-align: center; margin-bottom: 8px; }
+
+    /* 비밀번호 입력 */
+    #pwInput {
+      width: 100%; padding: 16px; border: 2px solid #eee;
+      border-radius: 12px; font-size: 22px; text-align: center;
+      letter-spacing: 6px; margin-bottom: 12px; outline: none;
+    }
+    #pwInput:focus { border-color: var(--primary); }
+
+    /* 쿠폰 정보 */
+    .info-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f0f0f0; font-size: 15px; }
+    .info-row:last-child { border-bottom: none; }
+    .info-label { color: #999; font-size: 13px; }
+    .info-value { font-weight: bold; }
+
+    .status-badge { display: inline-block; padding: 8px 20px; border-radius: 20px; font-weight: bold; font-size: 15px; margin: 5px 0 15px; }
+    .status-valid { background: #d4edda; color: #155724; }
+    .status-used  { background: #f8d7da; color: #721c24; }
+
+    /* 버튼 */
+    .btn { width: 100%; padding: 18px; border: none; border-radius: 14px; font-size: 18px; font-weight: bold; cursor: pointer; margin-bottom: 10px; transition: 0.15s; }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-success { background: #27ae60; color: white; }
+    .btn-gray { background: #eee; color: #555; }
+    .btn:disabled { background: #ccc !important; color: #999 !important; cursor: not-allowed; }
+
+    /* 로딩 */
+    .loading { text-align: center; padding: 30px; color: #999; font-size: 15px; }
+    .spinner { font-size: 30px; animation: spin 1s linear infinite; display: block; margin-bottom: 10px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- 비밀번호 확인 -->
+  <div id="loginCard" class="card">
+    <span class="logo">🔐</span>
+    <h2>직원 확인</h2>
+    <input type="password" id="pwInput" placeholder="••••" maxlength="10" autofocus>
+    <button class="btn btn-primary" onclick="checkLogin()">확인</button>
+  </div>
+
+  <!-- 로딩 -->
+  <div id="loadingCard" class="card" style="display:none;">
+    <div class="loading">
+      <span class="spinner">⏳</span>
+      쿠폰 정보 조회 중...
+    </div>
+  </div>
+
+  <!-- 쿠폰 정보 + 사용완료 버튼 -->
+  <div id="resultCard" class="card" style="display:none;">
+    <span class="logo">🍚</span>
+    <h2>복주걱 롯데광복점</h2>
+    <div style="text-align:center;">
+      <span id="statusBadge" class="status-badge"></span>
+    </div>
+    <div class="info-row"><span class="info-label">쿠폰코드</span><span class="info-value" id="resCode"></span></div>
+    <div class="info-row"><span class="info-label">발급일시</span><span class="info-value" id="resIssued"></span></div>
+    <div class="info-row"><span class="info-label">연령대</span><span class="info-value" id="resAge"></span></div>
+    <div class="info-row"><span class="info-label">성별</span><span class="info-value" id="resGender"></span></div>
+    <div class="info-row" id="usedDateRow" style="display:none;">
+      <span class="info-label">사용일시</span><span class="info-value" id="resUsedDate"></span>
+    </div>
+    <div style="margin-top:20px;">
+      <button id="redeemBtn" class="btn btn-success" onclick="doRedeem()">✅ 사용 완료 처리</button>
+    </div>
+  </div>
+
+  <!-- 쿠폰 없음 -->
+  <div id="notFoundCard" class="card" style="display:none; text-align:center;">
+    <div style="font-size:40px;margin-bottom:10px;">❌</div>
+    <h2>유효하지 않은 쿠폰</h2>
+    <p style="color:#999;">쿠폰 정보를 찾을 수 없습니다.</p>
+  </div>
+
+</div>
+
+<script>
+  // GAS 템플릿으로 전달된 쿠폰코드 (QR 스캔 시)
+  const preloadCode = '<?= preloadCode ?>';
+  let currentCode = preloadCode || '';
+  let isLoggedIn = false;
+
+  // 비밀번호 확인
+  function checkLogin() {
+    const pw = document.getElementById('pwInput').value;
+    if (!pw) return;
+
+    const btn = document.querySelector('#loginCard .btn-primary');
+    btn.disabled = true;
+    btn.textContent = '확인 중...';
+
+    google.script.run
+      .withSuccessHandler(ok => {
+        if (ok) {
+          isLoggedIn = true;
+          document.getElementById('loginCard').style.display = 'none';
+          // 쿠폰 코드가 있으면 즉시 조회
+          if (currentCode) {
+            lookupCoupon(currentCode);
+          }
+        } else {
+          alert('비밀번호가 틀렸습니다.');
+          btn.disabled = false;
+          btn.textContent = '확인';
+          document.getElementById('pwInput').value = '';
+          document.getElementById('pwInput').focus();
+        }
+      })
+      .withFailureHandler(() => {
+        alert('오류가 발생했습니다. 다시 시도해주세요.');
+        btn.disabled = false;
+        btn.textContent = '확인';
+      })
+      .verifyStaffPassword(pw);
+  }
+
+  // 쿠폰 조회
+  function lookupCoupon(code) {
+    document.getElementById('loadingCard').style.display = 'block';
+    document.getElementById('resultCard').style.display = 'none';
+    document.getElementById('notFoundCard').style.display = 'none';
+
+    google.script.run
+      .withSuccessHandler(res => {
+        document.getElementById('loadingCard').style.display = 'none';
+        if (!res.found) {
+          document.getElementById('notFoundCard').style.display = 'block';
+          return;
+        }
+        showResult(res);
+      })
+      .withFailureHandler(() => {
+        document.getElementById('loadingCard').style.display = 'none';
+        alert('조회 중 오류가 발생했습니다.');
+      })
+      .checkCouponStatus(code);
+  }
+
+  // 결과 렌더링
+  function showResult(res) {
+    currentCode = res.code;
+    document.getElementById('resCode').textContent = res.code;
+    document.getElementById('resIssued').textContent = res.issuedDate;
+    document.getElementById('resAge').textContent = res.age;
+    document.getElementById('resGender').textContent = res.gender;
+
+    const badge = document.getElementById('statusBadge');
+    const btn = document.getElementById('redeemBtn');
+
+    if (res.isUsed) {
+      badge.textContent = '❌ 이미 사용된 쿠폰';
+      badge.className = 'status-badge status-used';
+      btn.disabled = true;
+      btn.textContent = '이미 사용 완료된 쿠폰입니다';
+      document.getElementById('usedDateRow').style.display = 'flex';
+      document.getElementById('resUsedDate').textContent = res.usedDate;
+    } else {
+      badge.textContent = '✅ 유효한 쿠폰';
+      badge.className = 'status-badge status-valid';
+      btn.disabled = false;
+      btn.textContent = '✅ 사용 완료 처리';
+      document.getElementById('usedDateRow').style.display = 'none';
+    }
+
+    document.getElementById('resultCard').style.display = 'block';
+  }
+
+  // 사용완료 처리
+  function doRedeem() {
+    if (!confirm('이 쿠폰을 사용 완료 처리하시겠습니까?')) return;
+
+    const btn = document.getElementById('redeemBtn');
+    btn.disabled = true;
+    btn.textContent = '처리 중...';
+
+    google.script.run
+      .withSuccessHandler(res => {
+        if (res.success) {
+          const badge = document.getElementById('statusBadge');
+          badge.textContent = '✅ 사용 완료';
+          badge.className = 'status-badge status-used';
+          btn.textContent = '처리 완료 ✓';
+
+          // 사용일시 행 표시
+          const now = new Date();
+          const formatted = now.getFullYear() + '-'
+            + String(now.getMonth()+1).padStart(2,'0') + '-'
+            + String(now.getDate()).padStart(2,'0') + ' '
+            + String(now.getHours()).padStart(2,'0') + ':'
+            + String(now.getMinutes()).padStart(2,'0');
+          document.getElementById('resUsedDate').textContent = formatted;
+          document.getElementById('usedDateRow').style.display = 'flex';
+        } else {
+          alert('❌ ' + res.error);
+          btn.disabled = false;
+          btn.textContent = '✅ 사용 완료 처리';
+        }
+      })
+      .withFailureHandler(() => {
+        alert('처리 중 오류가 발생했습니다.');
+        btn.disabled = false;
+        btn.textContent = '✅ 사용 완료 처리';
+      })
+      .redeemCouponByCode(currentCode);
+  }
+
+  // Enter 키로 비밀번호 제출
+  document.getElementById('pwInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') checkLogin();
+  });
+</script>
+</body>
+</html>
